@@ -23,7 +23,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { transactions, profile, effectivePatrimony } = useApp();
-  const { format, convert } = useCurrency();
+  const { format, formatExact, convert } = useCurrency();
   const t = useT();
   const [showModal, setShowModal] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -112,14 +112,14 @@ export default function DashboardScreen() {
             <View style={styles.infoCardText}>
               <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t.currentPatrimony}</Text>
               <Text style={[styles.infoValue, { color: colors.foreground }]}>
-                {format(effectivePatrimony)}
+                {formatExact(effectivePatrimony)}
               </Text>
             </View>
             {patrimonGain > 0 && (
               <View style={[styles.badge, { backgroundColor: "#dcfce7" }]}>
                 <Feather name="trending-up" size={12} color="#16a34a" />
                 <Text style={[styles.badgeText, { color: "#16a34a" }]}>
-                  +{format(effectivePatrimony - (profile.initialPatrimony ?? 0))}
+                  +{formatExact(effectivePatrimony - (profile.initialPatrimony ?? 0))}
                 </Text>
               </View>
             )}
@@ -127,7 +127,7 @@ export default function DashboardScreen() {
               <View style={[styles.badge, { backgroundColor: "#fee2e2" }]}>
                 <Feather name="trending-down" size={12} color="#ef4444" />
                 <Text style={[styles.badgeText, { color: "#ef4444" }]}>
-                  {format(effectivePatrimony - (profile.initialPatrimony ?? 0))}
+                  {formatExact(effectivePatrimony - (profile.initialPatrimony ?? 0))}
                 </Text>
               </View>
             )}
@@ -157,7 +157,7 @@ export default function DashboardScreen() {
                   />
                 </View>
                 <Text style={[styles.progressSub, { color: colors.mutedForeground }]}>
-                  {format(stats.expenses)} de {format(profile.monthlyIncome)}
+                  {formatExact(stats.expenses)} de {formatExact(profile.monthlyIncome)}
                 </Text>
               </View>
             </>

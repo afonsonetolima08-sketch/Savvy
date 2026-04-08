@@ -12,7 +12,7 @@ export default function TipsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { transactions, profile, effectivePatrimony } = useApp();
-  const { format } = useCurrency();
+  const { format, formatExact } = useCurrency();
   const t = useT();
 
   const stats = getMonthlyStats(transactions);
@@ -81,13 +81,13 @@ export default function TipsScreen() {
               <View style={styles.statItem}>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t.currentPatrimony}</Text>
                 <Text style={[styles.statValue, { color: colors.foreground }]}>
-                  {format(effectivePatrimony)}
+                  {formatExact(effectivePatrimony)}
                 </Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{t.totalEvolution}</Text>
                 <Text style={[styles.statValue, { color: patrimonyGain >= 0 ? colors.income : colors.expense }]}>
-                  {patrimonyGain >= 0 ? "+" : ""}{format(patrimonyGain)}
+                  {patrimonyGain >= 0 ? "+" : ""}{formatExact(patrimonyGain)}
                 </Text>
               </View>
             </View>

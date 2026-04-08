@@ -31,5 +31,11 @@ export function useCurrency() {
     return convertAmount(eurAmount, currency);
   };
 
-  return { format, toBase, convert, symbol, currency };
+  /** Format with full precision — no k/M abbreviations, preserves sign */
+  const formatExact = (eurAmount: number): string => {
+    const converted = convertAmount(eurAmount, currency);
+    return formatCurrency(converted, currency, true);
+  };
+
+  return { format, formatExact, toBase, convert, symbol, currency };
 }

@@ -81,16 +81,19 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   CAD: "CA$",
 };
 
-export function formatCurrency(amount: number, currency: string): string {
+export function formatCurrency(amount: number, currency: string, exact = false): string {
   const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
   const absAmount = Math.abs(amount);
-  if (absAmount >= 1000000) {
-    return `${symbol}${(absAmount / 1000000).toFixed(1)}M`;
+  const sign = amount < 0 ? "-" : "";
+  if (!exact) {
+    if (absAmount >= 1_000_000) {
+      return `${sign}${symbol}${(absAmount / 1_000_000).toFixed(2)}M`;
+    }
+    if (absAmount >= 1_000) {
+      return `${sign}${symbol}${(absAmount / 1_000).toFixed(2)}k`;
+    }
   }
-  if (absAmount >= 1000) {
-    return `${symbol}${(absAmount / 1000).toFixed(1)}k`;
-  }
-  return `${symbol}${absAmount.toFixed(2)}`;
+  return `${sign}${symbol}${absAmount.toFixed(2)}`;
 }
 
 export function getMonthTransactions(transactions: Transaction[], monthOffset = 0): Transaction[] {
