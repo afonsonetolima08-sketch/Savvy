@@ -105,30 +105,74 @@ export function getMonthTransactions(transactions: Transaction[], monthOffset = 
   });
 }
 
-export function getMonthlyStats(transactions: Transaction[]) {
-  const monthTxs = getMonthTransactions(transactions);
+export function getMonthlyStats(transactions: Transaction[], monthOffset = 0) {
+  const monthTxs = getMonthTransactions(transactions, monthOffset);
   const income = monthTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expenses = monthTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  return { income, expenses, balance: income - expenses };
+  return { income, expenses, balance: income - expenses, count: monthTxs.length };
 }
 
-export function getCategoryBreakdown(transactions: Transaction[]): Record<string, number> {
-  const monthTxs = getMonthTransactions(transactions).filter((t) => t.type === "expense");
+export function getCategoryBreakdown(expenseTxs: Transaction[]): Record<string, number> {
   const breakdown: Record<string, number> = {};
-  for (const tx of monthTxs) {
+  for (const tx of expenseTxs) {
     breakdown[tx.category] = (breakdown[tx.category] ?? 0) + tx.amount;
   }
   return breakdown;
 }
 
+export interface MonthData {
+  key: string;
+  label: string;
+  shortLabel: string;
+  income: number;
+  expenses: number;
+  balance: number;
+  count: number;
+}
+
+export function getLast6MonthsData(transactions: Transaction[]): MonthData[] {
+  const result: MonthData[] = [];
+  for (let i = -5; i <= 0; i++) {
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const stats = getMonthlyStats(transactions, i);
+    const monthName = target.toLocaleDateString("pt-PT", { month: "short" });
+    const fullName = target.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+    result.push({
+      key: `${target.getFullYear()}-${target.getMonth()}`,
+      label: fullName.charAt(0).toUpperCase() + fullName.slice(1),
+      shortLabel: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      ...stats,
+    });
+  }
+  return result;
+}
+
+export function getBestAndWorstMonths(monthsData: MonthData[]): {
+  best: MonthData | null;
+  worst: MonthData | null;
+} {
+  const withData = monthsData.filter((m) => m.count > 0);
+  if (withData.length === 0) return { best: null, worst: null };
+  const sorted = [...withData].sort((a, b) => b.balance - a.balance);
+  return { best: sorted[0] ?? null, worst: sorted[sorted.length - 1] ?? null };
+}
+
+export function getAllTimeCategoryBreakdown(transactions: Transaction[]): Record<string, number> {
+  const expenses = transactions.filter((t) => t.type === "expense");
+  return getCategoryBreakdown(expenses);
+}
+
 export function generateTips(transactions: Transaction[], profile: UserProfile): string[] {
   const tips: string[] = [];
   const { income, expenses } = getMonthlyStats(transactions);
-  const breakdown = getCategoryBreakdown(transactions);
+  const expTxs = getMonthTransactions(transactions).filter((t) => t.type === "expense");
+  const breakdown = getCategoryBreakdown(expTxs);
   const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+  const firstName = profile.name?.split(" ")[0] || "";
 
   if (profile.mainObjective === "save" && savingsRate < 20) {
-    tips.push("Tenta poupar pelo menos 20% do teu rendimento mensalmente para atingir os teus objetivos.");
+    tips.push(`${firstName ? firstName + ", t" : "T"}enta poupar pelo menos 20% do teu rendimento mensalmente para atingir os teus objetivos.`);
   }
 
   if (income > 0 && expenses > income * 0.8) {
@@ -174,4 +218,14 @@ export function getMonthName(offset = 0): string {
   const d = new Date();
   d.setMonth(d.getMonth() + offset);
   return d.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
+}
+
+export function getGreeting(name: string): string {
+  const hour = new Date().getHours();
+  const firstName = name?.trim().split(" ")[0] || "";
+  let base: string;
+  if (hour < 12) base = "Bom dia";
+  else if (hour < 19) base = "Boa tarde";
+  else base = "Boa noite";
+  return firstName ? `${base}, ${firstName}` : base;
 }

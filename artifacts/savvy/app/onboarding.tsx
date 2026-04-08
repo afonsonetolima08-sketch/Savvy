@@ -17,20 +17,31 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 
+type StepType = "options" | "number" | "boolean" | "text";
+
 type Step = {
   id: string;
   question: string;
   subtitle?: string;
-  type: "options" | "number" | "boolean";
+  type: StepType;
   field: string;
   options?: { label: string; value: string }[];
+  placeholder?: string;
 };
 
 const STEPS: Step[] = [
   {
+    id: "name",
+    question: "Olá! Como te chamas?",
+    subtitle: "Vamos personalizar a tua experiência.",
+    type: "text",
+    field: "name",
+    placeholder: "O teu nome",
+  },
+  {
     id: "objective",
     question: "Qual é o teu objetivo financeiro principal?",
-    subtitle: "Vamos personalizar a tua experiência com base nos teus objetivos.",
+    subtitle: "Adapta as tuas dicas e recomendações.",
     type: "options",
     field: "mainObjective",
     options: [
@@ -44,7 +55,7 @@ const STEPS: Step[] = [
   {
     id: "income",
     question: "Qual é o teu rendimento mensal aproximado?",
-    subtitle: "Em euros. Isto ajuda-nos a calibrar as tuas metas.",
+    subtitle: "Em euros. Ajuda-nos a calibrar as tuas metas.",
     type: "number",
     field: "monthlyIncome",
   },
@@ -53,7 +64,7 @@ const STEPS: Step[] = [
     question: "Qual é o teu património atual?",
     subtitle: "Poupanças, investimentos e outros ativos (em euros).",
     type: "number",
-    field: "currentPatrimony",
+    field: "initialPatrimony",
   },
   {
     id: "debts",
@@ -89,11 +100,12 @@ export default function OnboardingScreen() {
   const { updateProfile } = useApp();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [textValue, setTextValue] = useState("");
   const [numValue, setNumValue] = useState("");
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(1 / STEPS.length)).current;
 
   const step = STEPS[currentStep];
-  const progress = (currentStep + 1) / STEPS.length;
+  const isLast = currentStep === STEPS.length - 1;
 
   const animateProgress = (p: number) => {
     Animated.timing(progressAnim, {
@@ -107,21 +119,24 @@ export default function OnboardingScreen() {
     Haptics.selectionAsync();
     const updated = { ...answers, [step.field]: value };
     setAnswers(updated);
-
-    if (step.type !== "number") {
-      setTimeout(() => goNext(updated), 200);
+    if (step.type !== "number" && step.type !== "text") {
+      setTimeout(() => goNext(updated), 220);
     }
   };
 
   const goNext = (updatedAnswers?: Record<string, any>) => {
-    const ans = updatedAnswers ?? answers;
+    const ans = updatedAnswers ?? { ...answers };
 
     if (step.type === "number") {
       const val = parseFloat(numValue.replace(",", ".")) || 0;
       ans[step.field] = val;
-      setAnswers(ans);
       setNumValue("");
+    } else if (step.type === "text") {
+      ans[step.field] = textValue.trim();
+      setTextValue("");
     }
+
+    setAnswers(ans);
 
     if (currentStep < STEPS.length - 1) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -131,6 +146,7 @@ export default function OnboardingScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       updateProfile({
         ...ans,
+        currentPatrimony: ans.initialPatrimony ?? 0,
         onboardingCompleted: true,
         currency: "EUR",
         language: "pt",
@@ -145,36 +161,40 @@ export default function OnboardingScreen() {
       animateProgress(currentStep / STEPS.length);
       setCurrentStep((s) => s - 1);
       setNumValue("");
+      setTextValue("");
     }
   };
 
-  const canContinue =
-    step.type === "number"
-      ? numValue.length > 0
-      : answers[step.field] !== undefined;
+  const canContinue = (() => {
+    if (step.type === "number") return numValue.length > 0;
+    if (step.type === "text") return textValue.trim().length > 0;
+    return answers[step.field] !== undefined;
+  })();
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
 
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <View style={[styles.topBar, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.topBar, { paddingTop: topPad + 16 }]}>
         {currentStep > 0 ? (
-          <TouchableOpacity onPress={goBack} hitSlop={12}>
+          <TouchableOpacity onPress={goBack} hitSlop={16} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color={colors.foreground} />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 22 }} />
+          <View style={styles.backBtn} />
         )}
         <Text style={[styles.stepCounter, { color: colors.mutedForeground }]}>
           {currentStep + 1} / {STEPS.length}
         </Text>
-        <View style={{ width: 22 }} />
+        <View style={styles.backBtn} />
       </View>
 
       <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
@@ -184,7 +204,7 @@ export default function OnboardingScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -194,6 +214,28 @@ export default function OnboardingScreen() {
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{step.subtitle}</Text>
           )}
         </View>
+
+        {step.type === "text" && (
+          <View style={styles.inputBlock}>
+            <TextInput
+              style={[
+                styles.textInput,
+                {
+                  borderColor: textValue.length > 0 ? colors.primary : colors.border,
+                  backgroundColor: colors.card,
+                  color: colors.foreground,
+                },
+              ]}
+              value={textValue}
+              onChangeText={setTextValue}
+              placeholder={step.placeholder}
+              placeholderTextColor={colors.mutedForeground}
+              autoFocus
+              returnKeyType="next"
+              onSubmitEditing={() => canContinue && goNext()}
+            />
+          </View>
+        )}
 
         {step.type === "options" && step.options && (
           <View style={styles.options}>
@@ -254,7 +296,15 @@ export default function OnboardingScreen() {
 
         {step.type === "number" && (
           <View style={styles.numberBlock}>
-            <View style={[styles.numberRow, { borderColor: canContinue ? colors.primary : colors.border, backgroundColor: colors.card }]}>
+            <View
+              style={[
+                styles.numberRow,
+                {
+                  borderColor: numValue.length > 0 ? colors.primary : colors.border,
+                  backgroundColor: colors.card,
+                },
+              ]}
+            >
               <Text style={[styles.currencySymbol, { color: colors.primary }]}>€</Text>
               <TextInput
                 style={[styles.numberInput, { color: colors.foreground }]}
@@ -264,12 +314,14 @@ export default function OnboardingScreen() {
                 placeholderTextColor={colors.mutedForeground}
                 keyboardType="decimal-pad"
                 autoFocus
+                returnKeyType="next"
+                onSubmitEditing={() => canContinue && goNext()}
               />
             </View>
           </View>
         )}
 
-        {(step.type === "number" || step.type === "boolean") && (
+        {(step.type === "number" || step.type === "text") && (
           <TouchableOpacity
             style={[
               styles.continueBtn,
@@ -280,17 +332,15 @@ export default function OnboardingScreen() {
             activeOpacity={0.85}
           >
             <Text style={[styles.continueBtnText, { color: canContinue ? "#fff" : colors.mutedForeground }]}>
-              {currentStep < STEPS.length - 1 ? "Continuar" : "Começar"}
+              {isLast ? "Começar" : "Continuar"}
             </Text>
             <Feather
-              name={currentStep < STEPS.length - 1 ? "arrow-right" : "check"}
+              name={isLast ? "check" : "arrow-right"}
               size={18}
               color={canContinue ? "#fff" : colors.mutedForeground}
             />
           </TouchableOpacity>
         )}
-
-        <View style={{ height: insets.bottom + 32 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -302,29 +352,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 12,
   },
+  backBtn: { width: 44, height: 44, justifyContent: "center" },
   stepCounter: {
     fontSize: 14,
     fontFamily: "Inter_500Medium",
+    textAlign: "center",
   },
   progressBar: {
     height: 3,
-    marginHorizontal: 24,
+    marginHorizontal: 20,
     borderRadius: 2,
     overflow: "hidden",
+    marginBottom: 0,
   },
   progressFill: {
     height: 3,
     borderRadius: 2,
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 32,
   },
   questionBlock: {
-    marginBottom: 32,
+    marginBottom: 28,
     gap: 10,
   },
   question: {
@@ -337,6 +390,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 22,
   },
+  inputBlock: {
+    gap: 16,
+  },
+  textInput: {
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    fontSize: 22,
+    fontFamily: "Inter_500Medium",
+  },
   options: {
     gap: 10,
   },
@@ -347,6 +411,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 14,
     borderWidth: 1.5,
+    minHeight: 60,
   },
   optionText: {
     fontSize: 16,
@@ -379,9 +444,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: 32,
-    paddingVertical: 16,
+    marginTop: 28,
+    paddingVertical: 18,
     borderRadius: 14,
+    minHeight: 56,
   },
   continueBtnText: {
     fontSize: 17,

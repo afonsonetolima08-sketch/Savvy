@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
-  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -27,210 +26,221 @@ const OBJECTIVES: { label: string; value: string }[] = [
   { label: "Independência financeira", value: "freedom" },
 ];
 
+type EditModal = "currency" | "objective" | "income" | "patrimony" | "name" | null;
+
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { profile, updateProfile } = useApp();
 
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [showObjectivePicker, setShowObjectivePicker] = useState(false);
-  const [editingIncome, setEditingIncome] = useState(false);
-  const [incomeValue, setIncomeValue] = useState(profile.monthlyIncome.toString());
-  const [editingPatrimony, setEditingPatrimony] = useState(false);
-  const [patrimonyValue, setPatrimonyValue] = useState(profile.currentPatrimony.toString());
-
-  const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : 0;
+  const [activeModal, setActiveModal] = useState<EditModal>(null);
+  const [inputValue, setInputValue] = useState("");
 
   const currency = profile.currency || "EUR";
   const symbol = CURRENCY_SYMBOLS[currency] || "€";
 
-  const handleCurrencyChange = (cur: string) => {
-    Haptics.selectionAsync();
-    updateProfile({ currency: cur });
-    setShowCurrencyPicker(false);
+  const topPadding = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const openEdit = (type: EditModal, initialValue = "") => {
+    setInputValue(initialValue);
+    setActiveModal(type);
   };
 
-  const handleSaveIncome = () => {
-    const val = parseFloat(incomeValue.replace(",", ".")) || 0;
-    updateProfile({ monthlyIncome: val });
-    setEditingIncome(false);
+  const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const handleSavePatrimony = () => {
-    const val = parseFloat(patrimonyValue.replace(",", ".")) || 0;
-    updateProfile({ currentPatrimony: val });
-    setEditingPatrimony(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (activeModal === "income") {
+      updateProfile({ monthlyIncome: parseFloat(inputValue.replace(",", ".")) || 0 });
+    } else if (activeModal === "patrimony") {
+      const val = parseFloat(inputValue.replace(",", ".")) || 0;
+      updateProfile({ initialPatrimony: val, currentPatrimony: val });
+    } else if (activeModal === "name") {
+      updateProfile({ name: inputValue.trim() });
+    }
+    setActiveModal(null);
   };
 
   const currentObjective = OBJECTIVES.find((o) => o.value === profile.mainObjective);
 
+  function SettingsRow({
+    icon,
+    label,
+    value,
+    onPress,
+    iconBg,
+    iconColor,
+    last = false,
+  }: {
+    icon: string;
+    label: string;
+    value: string;
+    onPress?: () => void;
+    iconBg?: string;
+    iconColor?: string;
+    last?: boolean;
+  }) {
+    return (
+      <>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={onPress}
+          activeOpacity={onPress ? 0.7 : 1}
+          disabled={!onPress}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: iconBg ?? colors.primary + "15" }]}>
+            <Feather name={icon as any} size={16} color={iconColor ?? colors.primary} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={[styles.rowLabel, { color: colors.foreground }]}>{label}</Text>
+            <Text style={[styles.rowValue, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {value}
+            </Text>
+          </View>
+          {onPress && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
+        </TouchableOpacity>
+        {!last && <View style={[styles.divider, { backgroundColor: colors.border, marginLeft: 62 }]} />}
+      </>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topPadding + 8, paddingBottom: 100 + bottomPadding }}
+        contentContainerStyle={{ paddingTop: topPadding + 8, paddingBottom: 80 + bottomPadding }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <Text style={[styles.screenTitle, { color: colors.foreground }]}>Definições</Text>
         </View>
 
+        {/* Profile */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PERFIL FINANCEIRO</Text>
-
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PERFIL</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => {
-                setIncomeValue(profile.monthlyIncome.toString());
-                setEditingIncome(true);
-              }}
-            >
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name="dollar-sign" size={16} color={colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Rendimento Mensal</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>
-                    {symbol}{profile.monthlyIncome.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => {
-                setPatrimonyValue(profile.currentPatrimony.toString());
-                setEditingPatrimony(true);
-              }}
-            >
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name="archive" size={16} color={colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Património Atual</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>
-                    {symbol}{profile.currentPatrimony.toLocaleString()}
-                  </Text>
-                </View>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity style={styles.row} onPress={() => setShowObjectivePicker(true)}>
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.primary + "15" }]}>
-                  <Feather name="target" size={16} color={colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Objetivo Principal</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>
-                    {currentObjective?.label || "Não definido"}
-                  </Text>
-                </View>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            <SettingsRow
+              icon="user"
+              label="Nome"
+              value={profile.name || "Não definido"}
+              onPress={() => openEdit("name", profile.name || "")}
+            />
+            <SettingsRow
+              icon="dollar-sign"
+              label="Rendimento Mensal"
+              value={`${symbol}${profile.monthlyIncome.toLocaleString()}`}
+              onPress={() => openEdit("income", profile.monthlyIncome.toString())}
+            />
+            <SettingsRow
+              icon="archive"
+              label="Património Inicial"
+              value={`${symbol}${(profile.initialPatrimony ?? profile.currentPatrimony).toLocaleString()}`}
+              onPress={() => openEdit("patrimony", (profile.initialPatrimony ?? profile.currentPatrimony).toString())}
+            />
+            <SettingsRow
+              icon="target"
+              label="Objetivo Principal"
+              value={currentObjective?.label || "Não definido"}
+              onPress={() => setActiveModal("objective")}
+              last
+            />
           </View>
         </View>
 
+        {/* Preferences */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PREFERÊNCIAS</Text>
-
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <TouchableOpacity style={styles.row} onPress={() => setShowCurrencyPicker(true)}>
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.accent + "15" }]}>
-                  <Feather name="globe" size={16} color={colors.accent} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Moeda</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>
-                    {currency} — {CURRENCY_SYMBOLS[currency]}
-                  </Text>
-                </View>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <View style={styles.row}>
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.accent + "15" }]}>
-                  <Feather name="type" size={16} color={colors.accent} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Idioma</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>Português</Text>
-                </View>
-              </View>
-            </View>
+            <SettingsRow
+              icon="globe"
+              label="Moeda"
+              value={`${currency} — ${CURRENCY_SYMBOLS[currency]}`}
+              onPress={() => setActiveModal("currency")}
+              iconBg={colors.accent + "15"}
+              iconColor={colors.accent}
+            />
+            <SettingsRow
+              icon="type"
+              label="Idioma"
+              value="Português"
+              iconBg={colors.accent + "15"}
+              iconColor={colors.accent}
+              last
+            />
           </View>
         </View>
 
+        {/* About */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SOBRE</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.row}>
-              <View style={styles.rowLeft}>
-                <View style={[styles.rowIcon, { backgroundColor: colors.muted }]}>
-                  <Feather name="info" size={16} color={colors.mutedForeground} />
-                </View>
-                <View>
-                  <Text style={[styles.rowLabel, { color: colors.foreground }]}>Versão</Text>
-                  <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>1.0.0</Text>
-                </View>
-              </View>
-            </View>
+            <SettingsRow
+              icon="info"
+              label="Versão"
+              value="1.0.0"
+              iconBg={colors.muted}
+              iconColor={colors.mutedForeground}
+              last
+            />
           </View>
         </View>
       </ScrollView>
 
-      <Modal visible={showCurrencyPicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowCurrencyPicker(false)}>
+      {/* Currency Picker Modal */}
+      <Modal
+        visible={activeModal === "currency"}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setActiveModal(null)}
+      >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={() => setShowCurrencyPicker(false)} hitSlop={8}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Escolher Moeda</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-            {CURRENCIES.map((cur) => (
-              <TouchableOpacity
-                key={cur}
-                style={[styles.pickerOption, { backgroundColor: cur === currency ? colors.primary : colors.card, borderColor: cur === currency ? colors.primary : colors.border }]}
-                onPress={() => handleCurrencyChange(cur)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.pickerSymbol, { color: cur === currency ? "#fff" : colors.primary }]}>
-                  {CURRENCY_SYMBOLS[cur]}
-                </Text>
-                <Text style={[styles.pickerLabel, { color: cur === currency ? "#fff" : colors.foreground }]}>
-                  {cur}
-                </Text>
-                {cur === currency && <Feather name="check" size={18} color="#fff" />}
-              </TouchableOpacity>
-            ))}
+            {CURRENCIES.map((cur) => {
+              const sel = cur === currency;
+              return (
+                <TouchableOpacity
+                  key={cur}
+                  style={[
+                    styles.pickerOption,
+                    {
+                      backgroundColor: sel ? colors.primary : colors.card,
+                      borderColor: sel ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    updateProfile({ currency: cur });
+                    setActiveModal(null);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.pickerSymbol, { color: sel ? "#fff" : colors.primary }]}>
+                    {CURRENCY_SYMBOLS[cur]}
+                  </Text>
+                  <Text style={[styles.pickerLabel, { color: sel ? "#fff" : colors.foreground }]}>{cur}</Text>
+                  {sel && <Feather name="check" size={18} color="#fff" />}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       </Modal>
 
-      <Modal visible={showObjectivePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowObjectivePicker(false)}>
+      {/* Objective Picker Modal */}
+      <Modal
+        visible={activeModal === "objective"}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setActiveModal(null)}
+      >
         <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={() => setShowObjectivePicker(false)} hitSlop={8}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Objetivo Principal</Text>
@@ -242,11 +252,17 @@ export default function SettingsScreen() {
               return (
                 <TouchableOpacity
                   key={obj.value}
-                  style={[styles.pickerOption, { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border }]}
+                  style={[
+                    styles.pickerOption,
+                    {
+                      backgroundColor: sel ? colors.primary : colors.card,
+                      borderColor: sel ? colors.primary : colors.border,
+                    },
+                  ]}
                   onPress={() => {
                     Haptics.selectionAsync();
                     updateProfile({ mainObjective: obj.value });
-                    setShowObjectivePicker(false);
+                    setActiveModal(null);
                   }}
                   activeOpacity={0.75}
                 >
@@ -261,57 +277,63 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      <Modal visible={editingIncome} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditingIncome(false)}>
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={() => setEditingIncome(false)} hitSlop={8}>
-              <Feather name="x" size={22} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Rendimento Mensal</Text>
-            <TouchableOpacity onPress={handleSaveIncome} hitSlop={8}>
-              <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ padding: 24 }}>
-            <View style={[styles.numRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.numSymbol, { color: colors.primary }]}>{symbol}</Text>
-              <TextInput
-                style={[styles.numInput, { color: colors.foreground }]}
-                value={incomeValue}
-                onChangeText={setIncomeValue}
-                keyboardType="decimal-pad"
-                autoFocus
-              />
+      {/* Text/Number Edit Modals */}
+      {(activeModal === "income" || activeModal === "patrimony" || activeModal === "name") && (
+        <Modal
+          visible
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setActiveModal(null)}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
+              <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                {activeModal === "income"
+                  ? "Rendimento Mensal"
+                  : activeModal === "patrimony"
+                  ? "Património Inicial"
+                  : "Nome"}
+              </Text>
+              <TouchableOpacity onPress={handleSave} hitSlop={12}>
+                <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 24 }}>
+              {activeModal === "name" ? (
+                <TextInput
+                  style={[
+                    styles.nameInput,
+                    { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
+                  ]}
+                  value={inputValue}
+                  onChangeText={setInputValue}
+                  placeholder="O teu nome"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleSave}
+                />
+              ) : (
+                <View style={[styles.numRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                  <Text style={[styles.numSymbol, { color: colors.primary }]}>{symbol}</Text>
+                  <TextInput
+                    style={[styles.numInput, { color: colors.foreground }]}
+                    value={inputValue}
+                    onChangeText={setInputValue}
+                    keyboardType="decimal-pad"
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSave}
+                  />
+                </View>
+              )}
             </View>
           </View>
-        </View>
-      </Modal>
-
-      <Modal visible={editingPatrimony} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditingPatrimony(false)}>
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={() => setEditingPatrimony(false)} hitSlop={8}>
-              <Feather name="x" size={22} color={colors.foreground} />
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Património Atual</Text>
-            <TouchableOpacity onPress={handleSavePatrimony} hitSlop={8}>
-              <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ padding: 24 }}>
-            <View style={[styles.numRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.numSymbol, { color: colors.primary }]}>{symbol}</Text>
-              <TextInput
-                style={[styles.numInput, { color: colors.foreground }]}
-                value={patrimonyValue}
-                onChangeText={setPatrimonyValue}
-                keyboardType="decimal-pad"
-                autoFocus
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -319,7 +341,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 12,
   },
   screenTitle: {
@@ -345,14 +367,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     padding: 14,
-  },
-  rowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 12,
-    flex: 1,
+    minHeight: 60,
   },
   rowIcon: {
     width: 36,
@@ -361,6 +378,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  rowText: { flex: 1 },
   rowLabel: {
     fontSize: 15,
     fontFamily: "Inter_500Medium",
@@ -368,11 +386,9 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
+    marginTop: 1,
   },
-  divider: {
-    height: 1,
-    marginLeft: 62,
-  },
+  divider: { height: 1 },
   modalContainer: { flex: 1 },
   modalHeader: {
     flexDirection: "row",
@@ -397,6 +413,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     gap: 12,
+    minHeight: 54,
   },
   pickerSymbol: {
     fontSize: 18,
@@ -425,5 +442,13 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     paddingVertical: 16,
     paddingLeft: 8,
+  },
+  nameInput: {
+    borderWidth: 2,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    fontSize: 22,
+    fontFamily: "Inter_500Medium",
   },
 });

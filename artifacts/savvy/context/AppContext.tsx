@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -35,7 +36,9 @@ export interface Transaction {
 }
 
 export interface UserProfile {
+  name: string;
   financialGoal: string;
+  initialPatrimony: number;
   currentPatrimony: number;
   monthlyIncome: number;
   debts: number;
@@ -48,7 +51,9 @@ export interface UserProfile {
 }
 
 const DEFAULT_PROFILE: UserProfile = {
+  name: "",
   financialGoal: "",
+  initialPatrimony: 0,
   currentPatrimony: 0,
   monthlyIncome: 0,
   debts: 0,
@@ -67,6 +72,7 @@ export interface ExchangeRates {
 interface AppContextValue {
   transactions: Transaction[];
   profile: UserProfile;
+  effectivePatrimony: number;
   exchangeRates: ExchangeRates;
   addTransaction: (t: Omit<Transaction, "id">) => void;
   updateTransaction: (t: Transaction) => void;
@@ -110,7 +116,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(STORAGE_KEYS.PROFILE),
       ]);
       if (txRaw) setTransactions(JSON.parse(txRaw));
-      if (profileRaw) setProfile(JSON.parse(profileRaw));
+      if (profileRaw) {
+        const p = JSON.parse(profileRaw);
+        // Migrate: initialPatrimony defaults to currentPatrimony if missing
+        if (p.initialPatrimony === undefined) {
+          p.initialPatrimony = p.currentPatrimony ?? 0;
+        }
+        setProfile(p);
+      }
     } catch {
     } finally {
       setIsLoading(false);
@@ -124,6 +137,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveProfile = async (p: UserProfile) => {
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(p));
   };
+
+  // Effective patrimony = initial value + net savings from all transactions
+  const effectivePatrimony = useMemo(() => {
+    const totalIncome = transactions
+      .filter((t) => t.type === "income")
+      .reduce((s, t) => s + t.amount, 0);
+    const totalExpenses = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((s, t) => s + t.amount, 0);
+    return (profile.initialPatrimony ?? profile.currentPatrimony ?? 0) + totalIncome - totalExpenses;
+  }, [transactions, profile.initialPatrimony, profile.currentPatrimony]);
 
   const addTransaction = useCallback((t: Omit<Transaction, "id">) => {
     const newTx: Transaction = {
@@ -175,6 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         transactions,
         profile,
+        effectivePatrimony,
         exchangeRates,
         addTransaction,
         updateTransaction,

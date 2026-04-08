@@ -19,15 +19,16 @@ import {
 export default function TipsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { transactions, profile } = useApp();
+  const { transactions, profile, effectivePatrimony } = useApp();
   const currency = profile.currency || "EUR";
 
   const stats = getMonthlyStats(transactions);
   const tips = generateTips(transactions, profile);
   const savingsRate = stats.income > 0 ? ((stats.income - stats.expenses) / stats.income) * 100 : 0;
+  const firstName = profile.name?.trim().split(" ")[0] || "";
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPadding = Platform.OS === "web" ? 34 : 0;
+  const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
 
   const objectiveLabels: Record<string, string> = {
     save: "Poupar",
@@ -37,19 +38,22 @@ export default function TipsScreen() {
     freedom: "Independência Financeira",
   };
 
+  const patrimonyGain = effectivePatrimony - (profile.initialPatrimony ?? profile.currentPatrimony ?? 0);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: topPadding + 8, paddingBottom: 100 + bottomPadding }}
+        contentContainerStyle={{ paddingTop: topPadding + 8, paddingBottom: 80 + bottomPadding }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <Text style={[styles.screenTitle, { color: colors.foreground }]}>Dicas</Text>
           <Text style={[styles.screenSubtitle, { color: colors.mutedForeground }]}>
-            Personalizadas com base nos teus hábitos
+            {firstName ? `Recomendações para ti, ${firstName}` : "Personalizadas com base nos teus hábitos"}
           </Text>
         </View>
 
+        {/* Goal Card */}
         {profile.mainObjective && (
           <View style={[styles.goalCard, { backgroundColor: colors.secondary, borderColor: colors.primary + "33" }]}>
             <View style={[styles.goalIcon, { backgroundColor: colors.primary + "22" }]}>
@@ -64,6 +68,7 @@ export default function TipsScreen() {
           </View>
         )}
 
+        {/* Financial Summary */}
         {stats.income > 0 && (
           <View style={[styles.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Resumo Financeiro</Text>
@@ -80,28 +85,30 @@ export default function TipsScreen() {
                   {formatCurrency(Math.max(0, stats.income - stats.expenses), currency)}
                 </Text>
               </View>
-              {profile.currentPatrimony > 0 && (
-                <View style={styles.statItem}>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Património</Text>
-                  <Text style={[styles.statValue, { color: colors.foreground }]}>
-                    {formatCurrency(profile.currentPatrimony, currency)}
-                  </Text>
-                </View>
-              )}
-              {profile.debts > 0 && (
-                <View style={styles.statItem}>
-                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Dívidas</Text>
-                  <Text style={[styles.statValue, { color: colors.expense }]}>
-                    {formatCurrency(profile.debts, currency)}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Património Atual</Text>
+                <Text style={[styles.statValue, { color: colors.foreground }]}>
+                  {formatCurrency(effectivePatrimony, currency)}
+                </Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Evolução Total</Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    { color: patrimonyGain >= 0 ? colors.income : colors.expense },
+                  ]}
+                >
+                  {patrimonyGain >= 0 ? "+" : ""}{formatCurrency(patrimonyGain, currency)}
+                </Text>
+              </View>
             </View>
           </View>
         )}
 
+        {/* Tips */}
         <Text style={[styles.tipsTitle, { color: colors.foreground }]}>
-          As tuas dicas de poupança
+          {firstName ? `As tuas dicas, ${firstName}` : "As tuas dicas de poupança"}
         </Text>
 
         <View style={styles.tipsList}>
@@ -132,8 +139,8 @@ export default function TipsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     gap: 4,
   },
   screenTitle: {
@@ -149,7 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
@@ -186,7 +193,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 14,
   },
   statItem: {
     width: "46%",
@@ -204,8 +211,8 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 17,
     fontFamily: "Inter_600SemiBold",
-    paddingHorizontal: 24,
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 10,
   },
   tipsList: {
     paddingHorizontal: 20,
@@ -236,7 +243,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    lineHeight: 20,
+    lineHeight: 21,
   },
   infoCard: {
     flexDirection: "row",
