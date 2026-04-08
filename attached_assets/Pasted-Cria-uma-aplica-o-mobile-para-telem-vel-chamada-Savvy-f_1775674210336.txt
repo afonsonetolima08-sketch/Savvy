@@ -1,0 +1,58 @@
+Cria uma aplicação mobile para telemóvel chamada “Savvy”, focada na gestão de finanças pessoais, com um design limpo, moderno e intuitivo, utilizando o verde como cor principal (associada a finanças e crescimento), complementado por branco e cinza claro. A aplicação deve ser otimizada para dispositivos móveis (Android e iOS).
+
+Funcionalidades Principais:
+Registo de Ganhos e Gastos
+Permitir aos utilizadores registar ganhos e gastos
+Cada registo deve incluir:
+Valor
+Categoria (ex: alimentação, renda, salário, lazer)
+Data
+Descrição
+Permitir adicionar, editar e eliminar registos de forma simples
+Painel Principal (Dashboard)
+Apresentar:
+Saldo atual
+Total de ganhos mensais
+Total de gastos mensais
+Utilizar cartões visuais (verde para ganhos, vermelho para gastos)
+Análise de Despesas
+Incluir um gráfico (tipo pizza ou donut) que mostre os gastos por categoria
+Tornar o gráfico interativo e fácil de interpretar
+Permitir filtrar por período (ex: mensal)
+Dicas Inteligentes de Poupança
+Gerar automaticamente dicas personalizadas com base nos hábitos de consumo do utilizador
+Exemplos:
+Sugerir redução em categorias com gastos elevados
+Recomendar poupar uma percentagem do rendimento
+Identificar padrões de gastos incomuns
+Perguntas Iniciais (Onboarding Inteligente)
+No primeiro acesso, a aplicação deve fazer várias perguntas para personalizar a experiência do utilizador, como:
+Qual é o seu objetivo financeiro?
+Qual é o seu património atual?
+Qual é o seu rendimento mensal?
+Tem dívidas? Se sim, de quanto?
+Tem dependentes financeiros?
+Qual é o seu principal objetivo (poupar, investir, reduzir gastos, etc.)?
+Qual é o seu horizonte de investimento?
+Com base nas respostas, a app deve:
+Adaptar as dicas de poupança
+Ajustar sugestões e recomendações
+Personalizar a experiência do utilizador
+Definições (Configurações do Utilizador)
+Permitir ao utilizador alterar a qualquer momento:
+Idioma da aplicação
+Moeda (EUR, BRL, USD, etc.), com conversão automática baseada na taxa de câmbio atual
+Objetivo financeiro
+Património atual
+Rendimento mensal
+Garantir que, ao mudar a moeda, todos os valores são convertidos automaticamente sem perda de dados
+Guardar todas as preferências do utilizador
+Experiência do Utilizador e Design
+Interface mobile-first (pensada para telemóveis)
+Navegação fluida e simples (ex: menu inferior)
+Utilização de ícones modernos para categorias
+Cartões com cantos arredondados e sombras suaves
+Layout responsivo para diferentes tamanhos de ecrã
+Objetivo:
+
+Criar uma aplicação mobile inteligente, personalizada e visualmente apelativa que ajude os utilizadores a controlar as suas finanças, compreender os seus hábitos de consumo e atingir os seus objetivos financeiros de forma simples e eficaz.
