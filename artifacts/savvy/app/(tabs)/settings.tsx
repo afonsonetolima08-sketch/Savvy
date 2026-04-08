@@ -14,53 +14,81 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useCurrency } from "@/hooks/useCurrency";
+import { useT } from "@/hooks/useTranslations";
 import { CURRENCY_SYMBOLS } from "@/utils/finance";
 
 const CURRENCIES = ["EUR", "USD", "BRL", "GBP", "JPY", "CHF", "CAD"];
 
-const OBJECTIVES: { label: string; value: string }[] = [
-  { label: "Poupar dinheiro", value: "save" },
-  { label: "Reduzir dívidas", value: "reduce_debt" },
-  { label: "Investir", value: "invest" },
-  { label: "Controlar gastos", value: "control" },
-  { label: "Independência financeira", value: "freedom" },
+const OBJECTIVES_CONFIG = [
+  { key: "save" },
+  { key: "reduce_debt" },
+  { key: "invest" },
+  { key: "control" },
+  { key: "freedom" },
 ];
 
-type EditModal = "currency" | "objective" | "income" | "patrimony" | "name" | null;
+const LANGUAGES = [
+  { code: "pt", flag: "🇵🇹" },
+  { code: "en", flag: "🇬🇧" },
+];
+
+type EditModal = "currency" | "objective" | "income" | "patrimony" | "name" | "language" | null;
 
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { profile, updateProfile } = useApp();
+  const { symbol, convert, toBase } = useCurrency();
+  const t = useT();
 
   const [activeModal, setActiveModal] = useState<EditModal>(null);
   const [inputValue, setInputValue] = useState("");
 
   const currency = profile.currency || "EUR";
-  const symbol = CURRENCY_SYMBOLS[currency] || "€";
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const openEdit = (type: EditModal, initialValue = "") => {
-    setInputValue(initialValue);
+  const openEdit = (type: EditModal, eurValue?: number) => {
+    if (type === "income") {
+      setInputValue(convert(eurValue ?? 0).toFixed(2));
+    } else if (type === "patrimony") {
+      setInputValue(convert(eurValue ?? 0).toFixed(2));
+    } else if (type === "name") {
+      setInputValue(profile.name || "");
+    }
     setActiveModal(type);
   };
 
   const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const displayVal = parseFloat(inputValue.replace(",", ".")) || 0;
     if (activeModal === "income") {
-      updateProfile({ monthlyIncome: parseFloat(inputValue.replace(",", ".")) || 0 });
+      // User entered in display currency → convert to EUR for storage
+      updateProfile({ monthlyIncome: toBase(displayVal) });
     } else if (activeModal === "patrimony") {
-      const val = parseFloat(inputValue.replace(",", ".")) || 0;
-      updateProfile({ initialPatrimony: val, currentPatrimony: val });
+      const eurVal = toBase(displayVal);
+      updateProfile({ initialPatrimony: eurVal, currentPatrimony: eurVal });
     } else if (activeModal === "name") {
       updateProfile({ name: inputValue.trim() });
     }
     setActiveModal(null);
   };
 
-  const currentObjective = OBJECTIVES.find((o) => o.value === profile.mainObjective);
+  const objectiveLabels: Record<string, string> = {
+    save: t.objSave,
+    reduce_debt: t.objDebt,
+    invest: t.objInvest,
+    control: t.objControl,
+    freedom: t.objFreedom,
+  };
+
+  const currentObjectiveLabel = profile.mainObjective
+    ? objectiveLabels[profile.mainObjective]
+    : t.notDefined;
+
+  const currentLangLabel = profile.language === "en" ? t.langEn : t.langPt;
 
   function SettingsRow({
     icon,
@@ -92,9 +120,7 @@ export default function SettingsScreen() {
           </View>
           <View style={styles.rowText}>
             <Text style={[styles.rowLabel, { color: colors.foreground }]}>{label}</Text>
-            <Text style={[styles.rowValue, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {value}
-            </Text>
+            <Text style={[styles.rowValue, { color: colors.mutedForeground }]} numberOfLines={1}>{value}</Text>
           </View>
           {onPress && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
         </TouchableOpacity>
@@ -110,35 +136,35 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={[styles.screenTitle, { color: colors.foreground }]}>Definições</Text>
+          <Text style={[styles.screenTitle, { color: colors.foreground }]}>{t.settingsTitle}</Text>
         </View>
 
         {/* Profile */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PERFIL</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.sectionProfile}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <SettingsRow
               icon="user"
-              label="Nome"
-              value={profile.name || "Não definido"}
-              onPress={() => openEdit("name", profile.name || "")}
+              label={t.nameLabel}
+              value={profile.name || t.notDefined}
+              onPress={() => openEdit("name")}
             />
             <SettingsRow
               icon="dollar-sign"
-              label="Rendimento Mensal"
-              value={`${symbol}${profile.monthlyIncome.toLocaleString()}`}
-              onPress={() => openEdit("income", profile.monthlyIncome.toString())}
+              label={t.monthlyIncomeLabel}
+              value={`${symbol}${convert(profile.monthlyIncome).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              onPress={() => openEdit("income", profile.monthlyIncome)}
             />
             <SettingsRow
               icon="archive"
-              label="Património Inicial"
-              value={`${symbol}${(profile.initialPatrimony ?? profile.currentPatrimony).toLocaleString()}`}
-              onPress={() => openEdit("patrimony", (profile.initialPatrimony ?? profile.currentPatrimony).toString())}
+              label={t.initialPatrimonyLabel}
+              value={`${symbol}${convert(profile.initialPatrimony ?? profile.currentPatrimony).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+              onPress={() => openEdit("patrimony", profile.initialPatrimony ?? profile.currentPatrimony)}
             />
             <SettingsRow
               icon="target"
-              label="Objetivo Principal"
-              value={currentObjective?.label || "Não definido"}
+              label={t.mainObjectiveSettingsLabel}
+              value={currentObjectiveLabel}
               onPress={() => setActiveModal("objective")}
               last
             />
@@ -147,11 +173,11 @@ export default function SettingsScreen() {
 
         {/* Preferences */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PREFERÊNCIAS</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.sectionPreferences}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <SettingsRow
               icon="globe"
-              label="Moeda"
+              label={t.currencyLabel}
               value={`${currency} — ${CURRENCY_SYMBOLS[currency]}`}
               onPress={() => setActiveModal("currency")}
               iconBg={colors.accent + "15"}
@@ -159,8 +185,9 @@ export default function SettingsScreen() {
             />
             <SettingsRow
               icon="type"
-              label="Idioma"
-              value="Português"
+              label={t.languageLabel}
+              value={currentLangLabel}
+              onPress={() => setActiveModal("language")}
               iconBg={colors.accent + "15"}
               iconColor={colors.accent}
               last
@@ -170,11 +197,11 @@ export default function SettingsScreen() {
 
         {/* About */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SOBRE</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>{t.sectionAbout}</Text>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <SettingsRow
               icon="info"
-              label="Versão"
+              label={t.versionLabel}
               value="1.0.0"
               iconBg={colors.muted}
               iconColor={colors.mutedForeground}
@@ -184,7 +211,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Currency Picker Modal */}
+      {/* Currency Picker */}
       <Modal
         visible={activeModal === "currency"}
         animationType="slide"
@@ -196,7 +223,7 @@ export default function SettingsScreen() {
             <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Escolher Moeda</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.chooseCurrency}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
@@ -207,10 +234,7 @@ export default function SettingsScreen() {
                   key={cur}
                   style={[
                     styles.pickerOption,
-                    {
-                      backgroundColor: sel ? colors.primary : colors.card,
-                      borderColor: sel ? colors.primary : colors.border,
-                    },
+                    { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -231,7 +255,52 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Objective Picker Modal */}
+      {/* Language Picker */}
+      <Modal
+        visible={activeModal === "language"}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setActiveModal(null)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
+              <Feather name="x" size={22} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.chooseLanguage}</Text>
+            <View style={{ width: 22 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
+            {LANGUAGES.map((lang) => {
+              const sel = (profile.language || "pt") === lang.code;
+              const labelKey = lang.code === "pt" ? "langPt" : "langEn";
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    styles.pickerOption,
+                    { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    updateProfile({ language: lang.code });
+                    setActiveModal(null);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.flagEmoji}>{lang.flag}</Text>
+                  <Text style={[styles.pickerLabel, { color: sel ? "#fff" : colors.foreground, flex: 1 }]}>
+                    {t[labelKey as keyof typeof t]}
+                  </Text>
+                  {sel && <Feather name="check" size={18} color="#fff" />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Objective Picker */}
       <Modal
         visible={activeModal === "objective"}
         animationType="slide"
@@ -243,32 +312,28 @@ export default function SettingsScreen() {
             <TouchableOpacity onPress={() => setActiveModal(null)} hitSlop={12}>
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Objetivo Principal</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t.chooseObjective}</Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-            {OBJECTIVES.map((obj) => {
-              const sel = profile.mainObjective === obj.value;
+            {OBJECTIVES_CONFIG.map((obj) => {
+              const sel = profile.mainObjective === obj.key;
+              const label = objectiveLabels[obj.key];
               return (
                 <TouchableOpacity
-                  key={obj.value}
+                  key={obj.key}
                   style={[
                     styles.pickerOption,
-                    {
-                      backgroundColor: sel ? colors.primary : colors.card,
-                      borderColor: sel ? colors.primary : colors.border,
-                    },
+                    { backgroundColor: sel ? colors.primary : colors.card, borderColor: sel ? colors.primary : colors.border },
                   ]}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    updateProfile({ mainObjective: obj.value });
+                    updateProfile({ mainObjective: obj.key });
                     setActiveModal(null);
                   }}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.pickerLabel, { color: sel ? "#fff" : colors.foreground, flex: 1 }]}>
-                    {obj.label}
-                  </Text>
+                  <Text style={[styles.pickerLabel, { color: sel ? "#fff" : colors.foreground, flex: 1 }]}>{label}</Text>
                   {sel && <Feather name="check" size={18} color="#fff" />}
                 </TouchableOpacity>
               );
@@ -277,7 +342,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* Text/Number Edit Modals */}
+      {/* Name / Income / Patrimony Edit Modal */}
       {(activeModal === "income" || activeModal === "patrimony" || activeModal === "name") && (
         <Modal
           visible
@@ -292,25 +357,22 @@ export default function SettingsScreen() {
               </TouchableOpacity>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                 {activeModal === "income"
-                  ? "Rendimento Mensal"
+                  ? t.monthlyIncomeLabel
                   : activeModal === "patrimony"
-                  ? "Património Inicial"
-                  : "Nome"}
+                  ? t.initialPatrimonyLabel
+                  : t.nameLabel}
               </Text>
               <TouchableOpacity onPress={handleSave} hitSlop={12}>
-                <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
+                <Text style={[styles.saveText, { color: colors.primary }]}>{t.save}</Text>
               </TouchableOpacity>
             </View>
             <View style={{ padding: 24 }}>
               {activeModal === "name" ? (
                 <TextInput
-                  style={[
-                    styles.nameInput,
-                    { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground },
-                  ]}
+                  style={[styles.nameInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
                   value={inputValue}
                   onChangeText={setInputValue}
-                  placeholder="O teu nome"
+                  placeholder={profile.name || t.nameLabel}
                   placeholderTextColor={colors.mutedForeground}
                   autoFocus
                   returnKeyType="done"
@@ -340,54 +402,16 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -0.5,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    gap: 8,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.8,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    gap: 12,
-    minHeight: 60,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 12 },
+  screenTitle: { fontSize: 28, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
+  section: { paddingHorizontal: 20, marginBottom: 20, gap: 8 },
+  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8 },
+  card: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12, minHeight: 60 },
+  rowIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   rowText: { flex: 1 },
-  rowLabel: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  rowValue: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
+  rowLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  rowValue: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
   divider: { height: 1 },
   modalContainer: { flex: 1 },
   modalHeader: {
@@ -398,14 +422,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
-  modalTitle: {
-    fontSize: 17,
-    fontFamily: "Inter_600SemiBold",
-  },
-  saveText: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
+  modalTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
+  saveText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   pickerOption: {
     flexDirection: "row",
     alignItems: "center",
@@ -415,40 +433,11 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 54,
   },
-  pickerSymbol: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    width: 30,
-  },
-  pickerLabel: {
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
-    flex: 1,
-  },
-  numRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 2,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-  },
-  numSymbol: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-  },
-  numInput: {
-    flex: 1,
-    fontSize: 36,
-    fontFamily: "Inter_700Bold",
-    paddingVertical: 16,
-    paddingLeft: 8,
-  },
-  nameInput: {
-    borderWidth: 2,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    fontSize: 22,
-    fontFamily: "Inter_500Medium",
-  },
+  flagEmoji: { fontSize: 24 },
+  pickerSymbol: { fontSize: 18, fontFamily: "Inter_700Bold", width: 30 },
+  pickerLabel: { fontSize: 16, fontFamily: "Inter_500Medium" },
+  numRow: { flexDirection: "row", alignItems: "center", borderWidth: 2, borderRadius: 16, paddingHorizontal: 20 },
+  numSymbol: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  numInput: { flex: 1, fontSize: 36, fontFamily: "Inter_700Bold", paddingVertical: 16, paddingLeft: 8 },
+  nameInput: { borderWidth: 2, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 18, fontSize: 22, fontFamily: "Inter_500Medium" },
 });

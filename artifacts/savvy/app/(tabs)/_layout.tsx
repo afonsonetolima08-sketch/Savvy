@@ -8,29 +8,31 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useT } from "@/hooks/useTranslations";
 
 function NativeTabLayout() {
+  const t = useT();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Início</Label>
+        <Label>{t.tabHome}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="analytics">
         <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
-        <Label>Análise</Label>
+        <Label>{t.tabAnalysis}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="transactions">
         <Icon sf={{ default: "list.bullet", selected: "list.bullet.fill" }} />
-        <Label>Transações</Label>
+        <Label>{t.tabTransactions}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tips">
         <Icon sf={{ default: "lightbulb", selected: "lightbulb.fill" }} />
-        <Label>Dicas</Label>
+        <Label>{t.tabTips}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
-        <Label>Definições</Label>
+        <Label>{t.tabSettings}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -38,6 +40,7 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const colors = useColors();
+  const t = useT();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
@@ -77,7 +80,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Início",
+          title: t.tabHome,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={24} />
@@ -89,7 +92,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="analytics"
         options={{
-          title: "Análise",
+          title: t.tabAnalysis,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="chart.pie" tintColor={color} size={24} />
@@ -101,7 +104,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: "Transações",
+          title: t.tabTransactions,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="list.bullet" tintColor={color} size={24} />
@@ -113,7 +116,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="tips"
         options={{
-          title: "Dicas",
+          title: t.tabTips,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="lightbulb" tintColor={color} size={24} />
@@ -125,7 +128,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Definições",
+          title: t.tabSettings,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="gearshape" tintColor={color} size={24} />

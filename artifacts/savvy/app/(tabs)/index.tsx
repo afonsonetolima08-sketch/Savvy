@@ -14,31 +14,36 @@ import AddTransactionModal from "@/components/AddTransactionModal";
 import TransactionCard from "@/components/TransactionCard";
 import { Transaction, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import {
-  formatCurrency,
-  getGreeting,
-  getMonthlyStats,
-  getMonthTransactions,
-} from "@/utils/finance";
+import { useCurrency } from "@/hooks/useCurrency";
+import { useT } from "@/hooks/useTranslations";
+import { getGreetingT } from "@/utils/i18n";
+import { getMonthlyStats, getMonthTransactions } from "@/utils/finance";
 
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { transactions, profile, effectivePatrimony } = useApp();
+  const { format, convert } = useCurrency();
+  const t = useT();
   const [showModal, setShowModal] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
 
-  const currency = profile.currency || "EUR";
   const stats = getMonthlyStats(transactions);
   const recentTxs = getMonthTransactions(transactions).slice(0, 6);
-  const greeting = getGreeting(profile.name || "");
+  const greeting = getGreetingT(t, profile.name || "");
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
 
+  // effectivePatrimony and monthlyIncome are stored in EUR → convert for display
+  const displayIncome = convert(profile.monthlyIncome);
+  const displayPatrimony = convert(effectivePatrimony);
+  const displayInitial = convert(profile.initialPatrimony ?? 0);
+  const patrimonGain = displayPatrimony - displayInitial;
+
   const budgetPct =
-    profile.monthlyIncome > 0
-      ? Math.min(100, (stats.expenses / profile.monthlyIncome) * 100)
+    displayIncome > 0
+      ? Math.min(100, (convert(stats.expenses) / displayIncome) * 100)
       : 0;
 
   return (
@@ -52,9 +57,7 @@ export default function DashboardScreen() {
           <View style={styles.greetingRow}>
             <View style={styles.greetingText}>
               <Text style={[styles.greeting, { color: colors.foreground }]}>{greeting}</Text>
-              <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>
-                Aqui está o teu resumo financeiro
-              </Text>
+              <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>{t.greetingSub}</Text>
             </View>
             <TouchableOpacity
               style={[styles.addIconBtn, { backgroundColor: colors.primary }]}
@@ -72,9 +75,9 @@ export default function DashboardScreen() {
 
         {/* Balance Card */}
         <View style={[styles.balanceCard, { backgroundColor: colors.primary }]}>
-          <Text style={styles.balanceLabel}>Saldo do Mês</Text>
+          <Text style={styles.balanceLabel}>{t.monthlyBalance}</Text>
           <Text style={styles.balanceAmount}>
-            {stats.balance >= 0 ? "+" : ""}{formatCurrency(stats.balance, currency)}
+            {stats.balance >= 0 ? "+" : ""}{format(stats.balance)}
           </Text>
 
           <View style={styles.balanceStatsRow}>
@@ -83,18 +86,18 @@ export default function DashboardScreen() {
                 <Feather name="trending-up" size={13} color="rgba(255,255,255,0.8)" />
               </View>
               <View>
-                <Text style={styles.balanceStatLabel}>Ganhos</Text>
-                <Text style={styles.balanceStatValue}>+{formatCurrency(stats.income, currency)}</Text>
+                <Text style={styles.balanceStatLabel}>{t.income}</Text>
+                <Text style={styles.balanceStatValue}>+{format(stats.income)}</Text>
               </View>
             </View>
-            <View style={[styles.balanceDivider]} />
+            <View style={styles.balanceDivider} />
             <View style={styles.balanceStat}>
               <View style={styles.balanceStatIcon}>
                 <Feather name="trending-down" size={13} color="rgba(255,255,255,0.8)" />
               </View>
               <View>
-                <Text style={styles.balanceStatLabel}>Gastos</Text>
-                <Text style={styles.balanceStatValue}>-{formatCurrency(stats.expenses, currency)}</Text>
+                <Text style={styles.balanceStatLabel}>{t.expenses}</Text>
+                <Text style={styles.balanceStatValue}>-{format(stats.expenses)}</Text>
               </View>
             </View>
           </View>
@@ -107,36 +110,36 @@ export default function DashboardScreen() {
               <Feather name="archive" size={16} color={colors.primary} />
             </View>
             <View style={styles.infoCardText}>
-              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>Património Atual</Text>
+              <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{t.currentPatrimony}</Text>
               <Text style={[styles.infoValue, { color: colors.foreground }]}>
-                {formatCurrency(effectivePatrimony, currency)}
+                {format(effectivePatrimony)}
               </Text>
             </View>
-            {effectivePatrimony > (profile.initialPatrimony ?? 0) && (
+            {patrimonGain > 0 && (
               <View style={[styles.badge, { backgroundColor: "#dcfce7" }]}>
                 <Feather name="trending-up" size={12} color="#16a34a" />
                 <Text style={[styles.badgeText, { color: "#16a34a" }]}>
-                  +{formatCurrency(effectivePatrimony - (profile.initialPatrimony ?? 0), currency)}
+                  +{format(effectivePatrimony - (profile.initialPatrimony ?? 0))}
                 </Text>
               </View>
             )}
-            {effectivePatrimony < (profile.initialPatrimony ?? 0) && (
+            {patrimonGain < 0 && (
               <View style={[styles.badge, { backgroundColor: "#fee2e2" }]}>
                 <Feather name="trending-down" size={12} color="#ef4444" />
                 <Text style={[styles.badgeText, { color: "#ef4444" }]}>
-                  {formatCurrency(effectivePatrimony - (profile.initialPatrimony ?? 0), currency)}
+                  {format(effectivePatrimony - (profile.initialPatrimony ?? 0))}
                 </Text>
               </View>
             )}
           </View>
 
-          {profile.monthlyIncome > 0 && (
+          {displayIncome > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.progressSection}>
                 <View style={styles.progressHeader}>
                   <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-                    Orçamento usado
+                    {t.budgetUsed}
                   </Text>
                   <Text style={[styles.progressPct, { color: budgetPct > 80 ? colors.expense : colors.primary }]}>
                     {budgetPct.toFixed(0)}%
@@ -154,7 +157,7 @@ export default function DashboardScreen() {
                   />
                 </View>
                 <Text style={[styles.progressSub, { color: colors.mutedForeground }]}>
-                  {formatCurrency(stats.expenses, currency)} de {formatCurrency(profile.monthlyIncome, currency)}
+                  {format(stats.expenses)} de {format(profile.monthlyIncome)}
                 </Text>
               </View>
             </>
@@ -163,17 +166,13 @@ export default function DashboardScreen() {
 
         {/* Recent Transactions */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Transações Recentes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{t.recentTransactions}</Text>
 
           {recentTxs.length === 0 ? (
             <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="inbox" size={28} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                Sem transações este mês
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Toca no "+" para registar o teu primeiro ganho ou gasto
-              </Text>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t.noTransactions}</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{t.noTransactionsHint}</Text>
             </View>
           ) : (
             <View style={styles.txList}>
@@ -181,7 +180,6 @@ export default function DashboardScreen() {
                 <TransactionCard
                   key={tx.id}
                   transaction={tx}
-                  currency={currency}
                   onPress={() => {
                     Haptics.selectionAsync();
                     setEditTx(tx);

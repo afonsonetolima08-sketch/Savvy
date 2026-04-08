@@ -1,26 +1,44 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
-import { Transaction } from "@/context/AppContext";
-import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_LABELS, formatCurrency, formatDate } from "@/utils/finance";
+import { Transaction, TransactionCategory } from "@/context/AppContext";
+import { CATEGORY_COLORS, CATEGORY_ICONS, formatDate } from "@/utils/finance";
+import { useCurrency } from "@/hooks/useCurrency";
+import { useT } from "@/hooks/useTranslations";
 
 interface TransactionCardProps {
   transaction: Transaction;
-  currency: string;
   onPress?: () => void;
 }
 
-export default function TransactionCard({ transaction, currency, onPress }: TransactionCardProps) {
+export default function TransactionCard({ transaction, onPress }: TransactionCardProps) {
   const colors = useColors();
+  const { format } = useCurrency();
+  const t = useT();
   const isIncome = transaction.type === "income";
   const catColor = CATEGORY_COLORS[transaction.category];
   const icon = CATEGORY_ICONS[transaction.category];
+
+  const getCategoryLabel = (cat: TransactionCategory): string => {
+    const map: Record<TransactionCategory, string> = {
+      salary: t.catSalary,
+      freelance: t.catFreelance,
+      investment: t.catInvestment,
+      gift: t.catGift,
+      food: t.catFood,
+      housing: t.catHousing,
+      transport: t.catTransport,
+      health: t.catHealth,
+      entertainment: t.catEntertainment,
+      shopping: t.catShopping,
+      education: t.catEducation,
+      utilities: t.catUtilities,
+      travel: t.catTravel,
+      other: t.catOther,
+    };
+    return map[cat];
+  };
 
   return (
     <TouchableOpacity
@@ -33,14 +51,14 @@ export default function TransactionCard({ transaction, currency, onPress }: Tran
       </View>
       <View style={styles.info}>
         <Text style={[styles.description, { color: colors.foreground }]} numberOfLines={1}>
-          {transaction.description || CATEGORY_LABELS[transaction.category]}
+          {transaction.description || getCategoryLabel(transaction.category)}
         </Text>
         <Text style={[styles.date, { color: colors.mutedForeground }]}>
-          {CATEGORY_LABELS[transaction.category]} · {formatDate(transaction.date)}
+          {getCategoryLabel(transaction.category)} · {formatDate(transaction.date)}
         </Text>
       </View>
       <Text style={[styles.amount, { color: isIncome ? colors.income : colors.expense }]}>
-        {isIncome ? "+" : "-"}{formatCurrency(transaction.amount, currency)}
+        {isIncome ? "+" : "-"}{format(transaction.amount)}
       </Text>
     </TouchableOpacity>
   );

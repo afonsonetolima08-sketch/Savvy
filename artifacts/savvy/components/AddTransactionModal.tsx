@@ -17,10 +17,11 @@ import { useColors } from "@/hooks/useColors";
 import { Transaction, TransactionCategory, TransactionType, useApp } from "@/context/AppContext";
 import {
   CATEGORY_ICONS,
-  CATEGORY_LABELS,
   EXPENSE_CATEGORIES,
   INCOME_CATEGORIES,
 } from "@/utils/finance";
+import { useCurrency } from "@/hooks/useCurrency";
+import { useT } from "@/hooks/useTranslations";
 import * as Haptics from "expo-haptics";
 
 interface AddTransactionModalProps {
@@ -32,7 +33,9 @@ interface AddTransactionModalProps {
 export default function AddTransactionModal({ visible, onClose, editTransaction }: AddTransactionModalProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { addTransaction, updateTransaction } = useApp();
+  const { addTransaction, updateTransaction, convertAmount } = useApp();
+  const { symbol, currency, toBase } = useCurrency();
+  const t = useT();
 
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
@@ -43,7 +46,9 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
   useEffect(() => {
     if (editTransaction) {
       setType(editTransaction.type);
-      setAmount(editTransaction.amount.toString());
+      // Convert stored EUR amount to display currency for editing
+      const displayAmt = convertAmount(editTransaction.amount, currency);
+      setAmount(Number.isInteger(displayAmt) ? displayAmt.toString() : displayAmt.toFixed(2));
       setCategory(editTransaction.category);
       setDescription(editTransaction.description);
       setDate(editTransaction.date.split("T")[0]);
@@ -60,18 +65,41 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
     setDate(new Date().toISOString().split("T")[0]);
   };
 
+  const getCategoryLabel = (cat: TransactionCategory): string => {
+    const map: Record<TransactionCategory, string> = {
+      salary: t.catSalary,
+      freelance: t.catFreelance,
+      investment: t.catInvestment,
+      gift: t.catGift,
+      food: t.catFood,
+      housing: t.catHousing,
+      transport: t.catTransport,
+      health: t.catHealth,
+      entertainment: t.catEntertainment,
+      shopping: t.catShopping,
+      education: t.catEducation,
+      utilities: t.catUtilities,
+      travel: t.catTravel,
+      other: t.catOther,
+    };
+    return map[cat];
+  };
+
   const handleSave = () => {
-    const parsedAmount = parseFloat(amount.replace(",", "."));
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert("Valor inválido", "Por favor insere um valor válido.");
+    const parsedDisplayAmount = parseFloat(amount.replace(",", "."));
+    if (!amount || isNaN(parsedDisplayAmount) || parsedDisplayAmount <= 0) {
+      Alert.alert(t.invalidAmount, t.invalidAmountMsg);
       return;
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // Convert from display currency to EUR (base) for storage
+    const eurAmount = toBase(parsedDisplayAmount);
+
     const txData = {
       type,
-      amount: parsedAmount,
+      amount: eurAmount,
       category,
       description: description.trim(),
       date: new Date(date).toISOString(),
@@ -98,41 +126,41 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
             <Feather name="x" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            {editTransaction ? "Editar Registo" : "Novo Registo"}
+            {editTransaction ? t.editRecord : t.newRecord}
           </Text>
           <TouchableOpacity onPress={handleSave} hitSlop={8}>
-            <Text style={[styles.saveBtn, { color: colors.primary }]}>Guardar</Text>
+            <Text style={[styles.saveBtn, { color: colors.primary }]}>{t.save}</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={[styles.typeSelector, { backgroundColor: colors.muted }]}>
-            {(["expense", "income"] as TransactionType[]).map((t) => (
+            {(["expense", "income"] as TransactionType[]).map((tp) => (
               <TouchableOpacity
-                key={t}
+                key={tp}
                 style={[
                   styles.typeBtn,
-                  type === t && {
-                    backgroundColor: t === "income" ? colors.income : colors.expense,
+                  type === tp && {
+                    backgroundColor: tp === "income" ? colors.income : colors.expense,
                   },
                 ]}
                 onPress={() => {
-                  setType(t);
-                  setCategory(t === "income" ? "salary" : "food");
+                  setType(tp);
+                  setCategory(tp === "income" ? "salary" : "food");
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.typeBtnText, { color: type === t ? "#fff" : colors.mutedForeground }]}>
-                  {t === "income" ? "Ganho" : "Gasto"}
+                <Text style={[styles.typeBtnText, { color: type === tp ? "#fff" : colors.mutedForeground }]}>
+                  {tp === "income" ? t.gainLabel : t.expenseLabel}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>VALOR</Text>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>{t.amountLabel}</Text>
             <View style={[styles.amountRow, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.currencySign, { color: colors.primary }]}>€</Text>
+              <Text style={[styles.currencySign, { color: colors.primary }]}>{symbol}</Text>
               <TextInput
                 style={[styles.amountInput, { color: colors.foreground }]}
                 value={amount}
@@ -146,7 +174,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>CATEGORIA</Text>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>{t.categoryLabel}</Text>
             <View style={styles.categoryGrid}>
               {categories.map((cat) => (
                 <TouchableOpacity
@@ -172,7 +200,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
                       { color: category === cat ? "#fff" : colors.foreground },
                     ]}
                   >
-                    {CATEGORY_LABELS[cat]}
+                    {getCategoryLabel(cat)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -180,23 +208,23 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>DESCRIÇÃO</Text>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>{t.descriptionLabel}</Text>
             <TextInput
               style={[styles.textInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
               value={description}
               onChangeText={setDescription}
-              placeholder="Descrição (opcional)"
+              placeholder={t.descriptionPlaceholder}
               placeholderTextColor={colors.mutedForeground}
             />
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.mutedForeground }]}>DATA</Text>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>{t.dateLabel}</Text>
             <TextInput
               style={[styles.textInput, { borderColor: colors.border, backgroundColor: colors.card, color: colors.foreground }]}
               value={date}
               onChangeText={setDate}
-              placeholder="AAAA-MM-DD"
+              placeholder="YYYY-MM-DD"
               placeholderTextColor={colors.mutedForeground}
             />
           </View>
@@ -209,9 +237,7 @@ export default function AddTransactionModal({ visible, onClose, editTransaction 
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
