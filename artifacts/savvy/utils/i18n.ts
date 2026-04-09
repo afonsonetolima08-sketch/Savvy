@@ -7,7 +7,21 @@ const translations = {
     tabAnalysis: "Análise",
     tabTransactions: "Transações",
     tabTips: "Dicas",
+    tabAI: "IA",
     tabSettings: "Definições",
+
+    // AI Chat
+    aiTitle: "Assistente Financeiro",
+    aiSubtitle: "Pergunta-me qualquer coisa sobre finanças",
+    aiPlaceholder: "Escreve a tua pergunta...",
+    aiSend: "Enviar",
+    aiTyping: "A pensar...",
+    aiWelcome: "Olá! Sou o teu assistente financeiro pessoal. Posso ajudar-te com dicas de poupança, análise de gastos, estratégias de investimento e muito mais. O que gostarias de saber?",
+    aiError: "Ocorreu um erro. Tenta novamente.",
+    aiSuggestion1: "Como posso poupar mais?",
+    aiSuggestion2: "Analisa os meus gastos",
+    aiSuggestion3: "Dicas para investir",
+    aiSuggestion4: "Como reduzir dívidas?",
 
     // Greetings
     morning: "Bom dia",
@@ -159,7 +173,21 @@ const translations = {
     tabAnalysis: "Analysis",
     tabTransactions: "Transactions",
     tabTips: "Tips",
+    tabAI: "AI",
     tabSettings: "Settings",
+
+    // AI Chat
+    aiTitle: "Financial Assistant",
+    aiSubtitle: "Ask me anything about finance",
+    aiPlaceholder: "Type your question...",
+    aiSend: "Send",
+    aiTyping: "Thinking...",
+    aiWelcome: "Hi! I'm your personal financial assistant. I can help you with savings tips, spending analysis, investment strategies and much more. What would you like to know?",
+    aiError: "An error occurred. Please try again.",
+    aiSuggestion1: "How can I save more?",
+    aiSuggestion2: "Analyse my spending",
+    aiSuggestion3: "Investment tips",
+    aiSuggestion4: "How to reduce debt?",
 
     // Greetings
     morning: "Good morning",

@@ -75,6 +75,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ai"
+        options={{
+          title: t.tabAI,
+          tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: t.tabSettings,
