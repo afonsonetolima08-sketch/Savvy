@@ -66,3 +66,4 @@ Rules:
 - Give practical and actionable advice
 - Use simple and accessible language`;
 }
+export default router;
