@@ -19,6 +19,8 @@ import { useT } from "@/hooks/useTranslations";
 import { getGreetingT } from "@/utils/i18n";
 import { getMonthlyStats, getMonthTransactions } from "@/utils/finance";
 
+const NEGATIVE_CARD_COLOR = "#dc2626";
+
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -30,7 +32,13 @@ export default function DashboardScreen() {
 
   const stats = getMonthlyStats(transactions);
   const recentTxs = getMonthTransactions(transactions).slice(0, 6);
-  const greeting = getGreetingT(t, profile.name || "");
+  const isNegative = stats.balance < 0;
+  const cardColor = isNegative ? NEGATIVE_CARD_COLOR : colors.primary;
+
+  // Split greeting into base + name so we can style each differently
+  const firstName = profile.name?.trim().split(" ")[0] || "";
+  const hour = new Date().getHours();
+  const greetingBase = hour < 12 ? t.morning : hour < 19 ? t.afternoon : t.evening;
 
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
   const bottomPadding = Platform.OS === "web" ? 34 : insets.bottom;
@@ -56,7 +64,18 @@ export default function DashboardScreen() {
         <View style={styles.headerSection}>
           <View style={styles.greetingRow}>
             <View style={styles.greetingText}>
-              <Text style={[styles.greeting, { color: colors.foreground }]}>{greeting}</Text>
+              {firstName ? (
+                <>
+                  <Text style={[styles.greetingBase, { color: colors.mutedForeground }]}>
+                    {greetingBase},
+                  </Text>
+                  <Text style={[styles.greetingName, { color: colors.primary }]}>
+                    {firstName}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.greeting, { color: colors.foreground }]}>{greetingBase}</Text>
+              )}
               <Text style={[styles.greetingSub, { color: colors.mutedForeground }]}>{t.greetingSub}</Text>
             </View>
             <TouchableOpacity
@@ -74,7 +93,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Balance Card */}
-        <View style={[styles.balanceCard, { backgroundColor: colors.primary }]}>
+        <View style={[styles.balanceCard, { backgroundColor: cardColor }]}>
           <Text style={styles.balanceLabel}>{t.monthlyBalance}</Text>
           <Text style={styles.balanceAmount}>
             {stats.balance >= 0 ? "+" : ""}{format(stats.balance)}
@@ -220,6 +239,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Inter_700Bold",
     letterSpacing: -0.4,
+  },
+  greetingBase: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    letterSpacing: 0,
+  },
+  greetingName: {
+    fontSize: 36,
+    fontFamily: "Caveat_700Bold",
+    letterSpacing: 0.5,
+    lineHeight: 40,
+    marginTop: -2,
   },
   greetingSub: {
     fontSize: 13,
