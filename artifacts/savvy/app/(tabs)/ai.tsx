@@ -20,9 +20,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useT } from "@/hooks/useTranslations";
 import { getMonthlyStats } from "@/utils/finance";
 
-const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "http://localhost:8080";
+const API_BASE = "https://savvy-1-1xhb.onrender.com";
 
 interface Message {
   id: string;
