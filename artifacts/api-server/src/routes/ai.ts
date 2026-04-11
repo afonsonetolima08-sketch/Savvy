@@ -1,7 +1,8 @@
-import { Router } from "express";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+import { Router, type Request, type Response } from "express";
 const OpenAI = require("openai").default;
+
 const router = Router();
+
 const openai = new OpenAI({
   baseURL: process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"],
   apiKey: process.env["AI_INTEGRATIONS_OPENAI_API_KEY"] ?? "dummy",
@@ -29,7 +30,6 @@ function buildSystemPrompt(context: FinancialContext): string {
   const lang = context?.language === "en" ? "en" : "pt";
   const name = context?.name ? `, ${context.name}` : "";
   const currency = context?.currency ?? "EUR";
-
   if (lang === "pt") {
     return `És um assistente financeiro pessoal chamado Savvy${name}. Respondes SEMPRE em Português de Portugal. Usas um tom amigável, direto e prático. Forneces conselhos financeiros personalizados com base no perfil do utilizador.
 Perfil financeiro atual:
@@ -48,7 +48,6 @@ Regras:
 - Dá conselhos práticos e acionáveis
 - Usa linguagem simples e acessível`;
   }
-
   return `You are a personal financial assistant called Savvy${name}. You ALWAYS respond in English. You use a friendly, direct and practical tone. You provide personalised financial advice based on the user's profile.
 Current financial profile:
 - Name: ${context?.name ?? "User"}
@@ -66,4 +65,28 @@ Rules:
 - Give practical and actionable advice
 - Use simple and accessible language`;
 }
+
+router.post("/chat", async (req: Request, res: Response) => {
+  try {
+    const { messages, context } = req.body as {
+      messages: ChatMessage[];
+      context: FinancialContext;
+    };
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: buildSystemPrompt(context) },
+        ...messages,
+      ],
+    });
+
+    const reply = completion.choices[0]?.message?.content ?? "Erro ao obter resposta.";
+    res.json({ reply });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ reply: "Ocorreu um erro ao contactar a IA." });
+  }
+});
+
 export default router;
